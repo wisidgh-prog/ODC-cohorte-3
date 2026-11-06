@@ -33,6 +33,10 @@ public class User {
     @Column(nullable = false, unique = true)
     private String email;
 
+    @JsonIgnore
+    @Column(nullable = false)
+    private String password;
+
     /**
      * Relation 1 (User) -- 0..* (Board), cote "1" de la relation.
      *

@@ -1,7 +1,10 @@
 package com.example.Dashboard.Controller;
 
-import com.example.Dashboard.Model.Task;
+import com.example.Dashboard.Dto.TaskRequestDTO;
+import com.example.Dashboard.Dto.TaskResponseDTO;
+import com.example.Dashboard.Dto.TaskUpdateRequestDTO;
 import com.example.Dashboard.Service.TaskService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -11,10 +14,6 @@ import java.util.List;
 
 /**
  * Couche Controller : expose l'API REST pour les taches (Task).
- *
- * Les taches sont rattachees a un tableau dans l'URL (/api/boards/{boardId}/tasks).
- * Cela reflete la relation Board (1) -- (0..*) Task :
- * on ne peut pas creer une tache sans la rattacher a un tableau.
  *
  * Endpoints disponibles :
  *   POST   /api/boards/{boardId}/tasks           -> creer une tache
@@ -31,33 +30,41 @@ public class TaskController {
     private final TaskService taskService;
 
     @PostMapping
-    public ResponseEntity<Task> createTask(@PathVariable Long boardId,
-                                           @RequestBody Task task) {
-        Task created = taskService.createTask(boardId, task);
+    public ResponseEntity<TaskResponseDTO> createTask(
+            @PathVariable Long boardId,
+            @Valid @RequestBody TaskRequestDTO requestDTO) {
+
+        TaskResponseDTO created = taskService.createTask(boardId, requestDTO);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
     @GetMapping
-    public ResponseEntity<List<Task>> getTasks(@PathVariable Long boardId) {
+    public ResponseEntity<List<TaskResponseDTO>> getTasks(@PathVariable Long boardId) {
         return ResponseEntity.ok(taskService.getTasksByBoard(boardId));
     }
 
     @GetMapping("/{taskId}")
-    public ResponseEntity<Task> getTaskById(@PathVariable Long boardId,
-                                            @PathVariable Long taskId) {
+    public ResponseEntity<TaskResponseDTO> getTaskById(
+            @PathVariable Long boardId,
+            @PathVariable Long taskId) {
+
         return ResponseEntity.ok(taskService.getTaskById(taskId));
     }
 
     @PutMapping("/{taskId}")
-    public ResponseEntity<Task> updateTask(@PathVariable Long boardId,
-                                           @PathVariable Long taskId,
-                                           @RequestBody Task task) {
-        return ResponseEntity.ok(taskService.updateTask(taskId, task));
+    public ResponseEntity<TaskResponseDTO> updateTask(
+            @PathVariable Long boardId,
+            @PathVariable Long taskId,
+            @Valid @RequestBody TaskUpdateRequestDTO requestDTO) {
+
+        return ResponseEntity.ok(taskService.updateTask(taskId, requestDTO));
     }
 
     @DeleteMapping("/{taskId}")
-    public ResponseEntity<Void> deleteTask(@PathVariable Long boardId,
-                                           @PathVariable Long taskId) {
+    public ResponseEntity<Void> deleteTask(
+            @PathVariable Long boardId,
+            @PathVariable Long taskId) {
+
         taskService.deleteTask(taskId);
         return ResponseEntity.noContent().build();
     }

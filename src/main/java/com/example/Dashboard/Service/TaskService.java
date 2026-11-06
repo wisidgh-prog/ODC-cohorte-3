@@ -1,8 +1,12 @@
 package com.example.Dashboard.Service;
 
+import com.example.Dashboard.Dto.TaskRequestDTO;
+import com.example.Dashboard.Dto.TaskResponseDTO;
+import com.example.Dashboard.Dto.TaskUpdateRequestDTO;
+import com.example.Dashboard.Execption.ResourceNotFoundException;
+import com.example.Dashboard.Mapper.TaskMapper;
 import com.example.Dashboard.Model.Board;
 import com.example.Dashboard.Model.Task;
-import com.example.Dashboard.Model.TaskStatus;
 import com.example.Dashboard.Repository.TaskRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -12,8 +16,7 @@ import java.util.List;
 /**
  * Couche Service pour la gestion des taches (Task).
  *
- * Ce service illustre parfaitement le flux : le Controller appelle le Service,
- * le Service appelle le Repository, le Repository parle a la base de donnees.
+ * Utilise TaskMapper pour convertir les DTOs vers les entites JPA et inversement.
  */
 @Service
 @RequiredArgsConstructor
@@ -21,61 +24,65 @@ public class TaskService {
 
     private final TaskRepository taskRepository;
     private final BoardService boardService;
+    private final TaskMapper taskMapper;
 
     /**
      * Creer une nouvelle tache dans un tableau.
-     * On verifie que le tableau existe, puis on impose le statut initial A_FAIRE.
-     *
-     * @param boardId l'identifiant du tableau
-     * @param task    la tache a creer
      */
-    public Task createTask(Long boardId, Task task) {
-        // On verifie que le tableau existe (leve une exception sinon)
-        Board board = boardService.getBoardById(boardId);
+    public TaskResponseDTO createTask(Long boardId, TaskRequestDTO requestDTO) {
+        Board board = boardService.findBoardEntityById(boardId);
 
-        // On impose le statut initial : une nouvelle tache est toujours A_FAIRE
-        task.setStatus(TaskStatus.A_FAIRE);
+        Task task = taskMapper.toEntity(requestDTO);
         task.setBoard(board);
 
-        return taskRepository.save(task);
+        Task savedTask = taskRepository.save(task);
+        return taskMapper.toResponseDTO(savedTask);
     }
 
     /**
-     * Recuperer toutes les taches d'un tableau.
+     * Recuperer toutes les taches d'un tableau sous forme de DTOs.
      */
-    public List<Task> getTasksByBoard(Long boardId) {
-        return taskRepository.findByBoardId(boardId);
+    public List<TaskResponseDTO> getTasksByBoard(Long boardId) {
+        boardService.findBoardEntityById(boardId);
+
+        return taskRepository.findByBoardId(boardId)
+                .stream()
+                .map(taskMapper::toResponseDTO)
+                .toList();
     }
 
     /**
-     * Recuperer une tache par son identifiant.
+     * Recuperer une tache par son identifiant sous forme de DTO.
      */
-    public Task getTaskById(Long id) {
-        return taskRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Tache introuvable avec id=" + id));
+    public TaskResponseDTO getTaskById(Long id) {
+        Task task = findTaskEntityById(id);
+        return taskMapper.toResponseDTO(task);
     }
 
     /**
      * Mettre a jour une tache (titre, description, statut).
-     * Hibernate detecte automatiquement les changements et les persiste
-     * a la fin de la transaction ("dirty checking").
-     *
-     * @param id          identifiant de la tache a modifier
-     * @param taskDetails les nouvelles valeurs
      */
-    public Task updateTask(Long id, Task taskDetails) {
-        Task task = getTaskById(id);
-        task.setTitle(taskDetails.getTitle());
-        task.setDescription(taskDetails.getDescription());
-        task.setStatus(taskDetails.getStatus());
-        return taskRepository.save(task);
+    public TaskResponseDTO updateTask(Long id, TaskUpdateRequestDTO requestDTO) {
+        Task task = findTaskEntityById(id);
+        taskMapper.updateEntityFromDTO(task, requestDTO);
+
+        Task updatedTask = taskRepository.save(task);
+        return taskMapper.toResponseDTO(updatedTask);
     }
 
     /**
-     * Supprimer une tache.
+     * Supprimer une tache par son identifiant.
      */
     public void deleteTask(Long id) {
-        Task task = getTaskById(id);
+        Task task = findTaskEntityById(id);
         taskRepository.delete(task);
+    }
+
+    /**
+     * Methode utilitaire interne pour recuperer l'entite Task.
+     */
+    public Task findTaskEntityById(Long id) {
+        return taskRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Tache introuvable avec id=" + id));
     }
 }

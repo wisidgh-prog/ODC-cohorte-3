@@ -1,5 +1,9 @@
 package com.example.Dashboard.Service;
 
+import com.example.Dashboard.Dto.BoardRequestDTO;
+import com.example.Dashboard.Dto.BoardResponseDTO;
+import com.example.Dashboard.Execption.ResourceNotFoundException;
+import com.example.Dashboard.Mapper.BoardMapper;
 import com.example.Dashboard.Model.Board;
 import com.example.Dashboard.Model.User;
 import com.example.Dashboard.Repository.BoardRepository;
@@ -11,8 +15,7 @@ import java.util.List;
 /**
  * Couche Service pour la gestion des tableaux (Board).
  *
- * Ce service contient la logique metier : verifier que le proprietaire
- * existe avant de creer un tableau, supprimer un tableau, etc.
+ * Utilise BoardMapper pour convertir les DTOs vers les entites JPA et inversement.
  */
 @Service
 @RequiredArgsConstructor
@@ -20,43 +23,58 @@ public class BoardService {
 
     private final BoardRepository boardRepository;
     private final UserService userService;
+    private final BoardMapper boardMapper;
 
     /**
      * Creer un nouveau tableau pour un utilisateur.
-     * On verifie que le proprietaire (owner) existe avant de sauvegarder.
-     *
-     * @param ownerId l'identifiant du proprietaire
-     * @param board   le tableau a creer (sans owner pour l'instant)
      */
-    public Board createBoard(Long ownerId, Board board) {
-        // On verifie que l'utilisateur existe (leve une exception sinon)
-        User owner = userService.getUserById(ownerId);
+    public BoardResponseDTO createBoard(Long ownerId, BoardRequestDTO requestDTO) {
+        Long targetOwnerId = (ownerId != null) ? ownerId : requestDTO.getOwnerId();
+        if (targetOwnerId == null) {
+            throw new IllegalArgumentException("L'identifiant du proprietaire (ownerId) est obligatoire");
+        }
+
+        User owner = userService.findUserEntityById(targetOwnerId);
+        Board board = boardMapper.toEntity(requestDTO);
         board.setOwner(owner);
-        return boardRepository.save(board);
+
+        Board savedBoard = boardRepository.save(board);
+        return boardMapper.toResponseDTO(savedBoard);
     }
 
     /**
-     * Recuperer tous les tableaux d'un utilisateur.
+     * Recuperer tous les tableaux d'un utilisateur sous forme de DTOs.
      */
-    public List<Board> getBoardsByOwner(Long ownerId) {
-        return boardRepository.findByOwnerId(ownerId);
+    public List<BoardResponseDTO> getBoardsByOwner(Long ownerId) {
+        userService.findUserEntityById(ownerId);
+
+        return boardRepository.findByOwnerId(ownerId)
+                .stream()
+                .map(boardMapper::toResponseDTO)
+                .toList();
     }
 
     /**
-     * Recuperer un tableau par son identifiant.
+     * Recuperer un tableau par son identifiant sous forme de DTO.
      */
-    public Board getBoardById(Long id) {
-        return boardRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Tableau introuvable avec id=" + id));
+    public BoardResponseDTO getBoardById(Long id) {
+        Board board = findBoardEntityById(id);
+        return boardMapper.toResponseDTO(board);
     }
 
     /**
-     * Supprimer un tableau.
-     * Grace a cascade = ALL + orphanRemoval sur Board.tasks,
-     * toutes les taches associees sont aussi supprimees automatiquement.
+     * Supprimer un tableau par son identifiant.
      */
     public void deleteBoard(Long id) {
-        Board board = getBoardById(id);
+        Board board = findBoardEntityById(id);
         boardRepository.delete(board);
+    }
+
+    /**
+     * Methode utilitaire interne pour recuperer l'entite Board.
+     */
+    public Board findBoardEntityById(Long id) {
+        return boardRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Tableau introuvable avec id=" + id));
     }
 }

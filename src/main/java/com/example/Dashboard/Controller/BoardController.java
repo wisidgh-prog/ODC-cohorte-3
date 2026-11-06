@@ -1,7 +1,9 @@
 package com.example.Dashboard.Controller;
 
-import com.example.Dashboard.Model.Board;
+import com.example.Dashboard.Dto.BoardRequestDTO;
+import com.example.Dashboard.Dto.BoardResponseDTO;
 import com.example.Dashboard.Service.BoardService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -13,10 +15,10 @@ import java.util.List;
  * Couche Controller : expose l'API REST pour les tableaux (Board).
  *
  * Endpoints disponibles :
- *   POST   /api/boards?ownerId={id}  -> creer un tableau pour un utilisateur
- *   GET    /api/boards?ownerId={id}  -> lister les tableaux d'un utilisateur
- *   GET    /api/boards/{id}          -> recuperer un tableau par id
- *   DELETE /api/boards/{id}          -> supprimer un tableau
+ *   POST   /api/boards (avec ownerId en query param OU dans le body) -> creer un tableau
+ *   GET    /api/boards?ownerId={id}                                 -> lister les tableaux d'un utilisateur
+ *   GET    /api/boards/{id}                                         -> recuperer un tableau par id
+ *   DELETE /api/boards/{id}                                         -> supprimer un tableau
  */
 @RestController
 @RequestMapping("/api/boards")
@@ -27,13 +29,14 @@ public class BoardController {
 
     /**
      * Creer un tableau.
-     * On passe l'ownerId en parametre de requete (query param).
-     * Exemple : POST /api/boards?ownerId=1
+     * Accepte l'ownerId soit en parametre d'URL (?ownerId=1), soit dans le corps JSON.
      */
     @PostMapping
-    public ResponseEntity<Board> createBoard(@RequestParam Long ownerId,
-                                             @RequestBody Board board) {
-        Board created = boardService.createBoard(ownerId, board);
+    public ResponseEntity<BoardResponseDTO> createBoard(
+            @RequestParam(required = false) Long ownerId,
+            @Valid @RequestBody BoardRequestDTO requestDTO) {
+
+        BoardResponseDTO created = boardService.createBoard(ownerId, requestDTO);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
@@ -42,12 +45,12 @@ public class BoardController {
      * Exemple : GET /api/boards?ownerId=1
      */
     @GetMapping
-    public ResponseEntity<List<Board>> getBoards(@RequestParam Long ownerId) {
+    public ResponseEntity<List<BoardResponseDTO>> getBoards(@RequestParam Long ownerId) {
         return ResponseEntity.ok(boardService.getBoardsByOwner(ownerId));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Board> getBoardById(@PathVariable Long id) {
+    public ResponseEntity<BoardResponseDTO> getBoardById(@PathVariable Long id) {
         return ResponseEntity.ok(boardService.getBoardById(id));
     }
 
