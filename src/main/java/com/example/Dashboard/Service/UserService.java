@@ -3,8 +3,6 @@ package com.example.Dashboard.Service;
 import com.example.Dashboard.Model.User;
 import com.example.Dashboard.Repository.UserRepository;
 import lombok.RequiredArgsConstructor;
-
-// import org.hibernate.annotations.GenericGenerators;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
